@@ -1,4 +1,4 @@
-import QtQuick 2.0
+import QtQuick 2.1
 import Sailfish.Silica 1.0
 import QtMultimedia 5.0
 import "../components"
@@ -226,9 +226,9 @@ Page {
 
             Grid {
                 columns: 3
-                anchors.left: parent.left
-                anchors.right: parent.right
-
+                anchors.horizontalCenter: parent.horizontalCenter
+                horizontalItemAlignment: Grid.AlignHCenter
+                verticalItemAlignment: Grid.AlignVCenter
                 Repeater {
                     visible: recentMediaLoaded
                     model: recentMediaModel
