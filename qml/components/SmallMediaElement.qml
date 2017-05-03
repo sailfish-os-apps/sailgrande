@@ -1,30 +1,27 @@
 import QtQuick 2.0
 
-Image {
-    opacity: mousearea.pressed ? 0.7 : 1
-    anchors.fill: parent
-    fillMode: Image.PreserveAspectCrop
-    source: mediaElement.image_versions2.candidates[mediaElement.image_versions2.candidates.length-1].url
+Rectangle {
+    id: images
+    property var item
 
-    property var mediaElement;
+    color: "transparent"
 
-    Image {
-       property int size: parent.width * 0.2
+    MainItemLoader{
+        id: mainLoader
+        anchors.fill: parent
+        width: parent.width
 
-       anchors.centerIn: parent
-       source:  "image://theme/icon-cover-play"
-       width: size
-       height: size
-       visible: mediaElement.videos !== undefined
-       opacity: 0.7
+        clip: true
+
+        autoVideoPlay: false
+        isSquared: true
     }
 
     MouseArea {
         id: mousearea
         anchors.fill: parent
         onClicked: {
-            pageStack.push(Qt.resolvedUrl("../pages/MediaDetailPage.qml"),{item:mediaElement});
-            console.log(mediaElement)
+            pageStack.push(Qt.resolvedUrl("../pages/MediaDetailPage.qml"),{item:item});
         }
     }
 }

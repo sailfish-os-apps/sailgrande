@@ -103,7 +103,6 @@ ApplicationWindow {
 
 
     Component.onCompleted: {
-        console.log("HELLO");
         init();
     }
 
@@ -112,6 +111,9 @@ ApplicationWindow {
         onMediaInfoReady:{
             var out = JSON.parse(answer);
             pageStack.push(Qt.resolvedUrl("pages/MediaDetailPage.qml"),{item: out.items[0]})
+        }
+        onError:{
+            console.log("Error: "+message)
         }
     }
 
