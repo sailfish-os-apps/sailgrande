@@ -1,8 +1,7 @@
-import QtQuick 2.0
+import QtQuick 2.1
 import Sailfish.Silica 1.0
 import QtMultimedia 5.0
 import "../components"
-import "../Api.js" as API
 import "../Helper.js" as Helper
 import "../UserListMode.js" as UserListMode
 import "../MediaStreamMode.js" as MediaStreamMode
@@ -17,6 +16,7 @@ Page {
     property var recentMediaData
 
     property bool relationStatusLoaded : false
+    property var relationStatus;
 
     property bool privateProfile : false;
     property bool recentMediaLoaded: false;
@@ -29,6 +29,25 @@ Page {
     property string rel_incoming_status : "";
 
     property bool isSelf: false;
+
+
+
+    onStatusChanged: {
+        if (status === PageStatus.Active) {
+            if(app.user.pk === user.pk)
+            {
+                isSelf = true;
+                followingMenuItem.visible = true
+                followersMenuItem.visible = true
+                followMenuItem.visible = false
+                unFollowMenuItem.visible = false
+            }
+            else
+            {
+                isSelf = false;
+            }
+        }
+    }
 
     SilicaFlickable {
         anchors.fill: parent
@@ -57,10 +76,8 @@ Page {
                     opacity: 0.1
                 }
                 UserDetailBlock{
-
                 }
             }
-
 
             Label {
                 id: incomingRelLabel
@@ -73,14 +90,15 @@ Page {
                 truncationMode: TruncationMode.Fade
                 visible: text!==""
                 function getOutgoingText() {
-                    if(rel_outgoing_status===null)
+                    if(!relationStatus)
+                    {
                         return "";
-                    if(rel_outgoing_status==="follows")
+                    }
+                    if(relationStatus.following)
                         return qsTr("You follow %1").arg(user.username);
-                    if(rel_outgoing_status==="requested")
+                    if(relationStatus.outgoing_request)
                         return qsTr("You requested to follow %1").arg(user.username);
-                    if(rel_outgoing_status==="none")
-                        return ""
+                    return ""
                 }
             }
 
@@ -95,18 +113,18 @@ Page {
                 visible: text!==""
 
                 function getIncomingText() {
-                    if(rel_incoming_status===null)
+                    if(!relationStatus)
+                    {
                         return "";
-                    if(rel_incoming_status==="followed_by")
+                    }
+
+                    if(relationStatus.followed_by)
                         return qsTr("%1 follows you").arg(user.username);
-                    if(rel_incoming_status==="requested_by")
+                    if(relationStatus.incoming_request)
                         return qsTr("%1 requested to follow you").arg(user.username);
-                    if(rel_incoming_status==="blocked_by_you")
+                    if(relationStatus.blocking)
                         return qsTr("You blocked %1").arg(user.username)
-                    if(rel_incoming_status==="none")
-                        return ""
-
-
+                    return ""
                 }
             }
 
@@ -148,13 +166,14 @@ Page {
 
 
             Label {
+                id: privatelabel
                 text: qsTr("This profile is private.")
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.paddingMedium
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.paddingMedium
                 color: Theme.highlightColor
-                visible: privateProfile
+                visible: false
             }
 
 
@@ -170,6 +189,7 @@ Page {
 
                 height: Theme.itemSizeMedium
                 width: parent.width
+                visible: !privatelabel.visible
 
 
                 Rectangle {
@@ -199,98 +219,79 @@ Page {
                 MouseArea {
                     id: mouseAreaHeader
                     anchors.fill: parent
-                    onClicked: pageStack.push(Qt.resolvedUrl("MediaStreamPage.qml"),{mode : MediaStreamMode.USER_MODE, streamData: recentMediaData,tag: user.id, streamTitle: user.username})
+                    onClicked: pageStack.push(Qt.resolvedUrl("MediaStreamPage.qml"),{mode : MediaStreamMode.USER_MODE, streamData: recentMediaData,tag: user.pk, streamTitle: user.username})
                 }
             }
-
-
-            Grid {
-                columns: 3
+            
+            GridView {
+                cellWidth: patent.width/3
                 anchors.left: parent.left
                 anchors.right: parent.right
+                model: recentMediaModel
 
-                Repeater {
-                    visible: recentMediaLoaded
-                    model: recentMediaModel
-                    delegate: Item {
-                        width: recentMediaSize
-                        height: recentMediaSize
-                        SmallMediaElement{
-                            mediaElement: model
-                        }
-                    }
-                }
+                delegate: SmallMediaElement{}
             }
-
         }
 
 
         PullDownMenu {
-
-
-
-
             MenuItem {
+                id: followersMenuItem
                 visible: isSelf
-                 text:  qsTr("Followers")
-                 onClicked: {
-                     pageStack.push(Qt.resolvedUrl("UserListPage.qml"),{pageTitle:qsTr("Followers"), mode: UserListMode.FOLLOWER});
-                 }
+                text:  qsTr("Followers")
+                onClicked: {
+                    pageStack.push(Qt.resolvedUrl("UserListPage.qml"),{pageTitle:qsTr("Followers"), mode: UserListMode.FOLLOWER});
+                }
             }
 
             MenuItem {
+                id: followingMenuItem
                 visible: isSelf
-                 text:  qsTr("Following")
-                 onClicked: {
-                     pageStack.push(Qt.resolvedUrl("UserListPage.qml"),{pageTitle:qsTr("Following"), mode: UserListMode.FOLLOWING});
-                 }
-             }
+                text:  qsTr("Following")
+                onClicked: {
+                    pageStack.push(Qt.resolvedUrl("UserListPage.qml"),{pageTitle:qsTr("Following"), mode: UserListMode.FOLLOWING});
+                }
+            }
 
             MenuItem {
-                 text:  qsTr("Unfollow %1").arg(user.username)
-                 visible: rel_outgoing_status==="follows" && !isSelf
-                 onClicked: {
-                     API.unfollow(user.id, reloadRelationship);
-                 }
-             }
+                id: unFollowMenuItem
+                text:  qsTr("Unfollow %1").arg(user.username)
+                visible: !relationStatus.following && !isSelf
+                onClicked: {
+                    instagram.unfollow(user.pk);
+                }
+            }
 
             MenuItem {
-                 text: qsTr("Follow %1").arg(user.username)
-                 visible: rel_outgoing_status==="none" && !isSelf
-                 onClicked: {
-                     API.follow(user.id, reloadRelationship);
-                 }
-             }
-
-           }
-
+                id: followMenuItem
+                text: qsTr("Follow %1").arg(user.username)
+                visible: !relationStatus.following && !isSelf
+                onClicked: {
+                    instagram.follow(user.pk);
+                }
+            }
+        }
     }
 
     ListModel {
         id: recentMediaModel
-
     }
 
 
     Component.onCompleted: {
+        instagram.getUsernameFeed(user.pk)
+        instagram.getUsernameInfo(user.pk)
+
         refreshCallback = null
-        if(user.id === API.selfId)
+        if(app.user.pk === user.pk)
+        {
             isSelf = true;
-        reload();
-
-    }
-
-    function reload() {
-        API.get_UserById(user.id,reloadFinished);
-        API.get_RecentMediaByUserId(user.id,recentMediaFinished)
-
-        if(!isSelf)
-            reloadRelationship("");
-    }
-
-    function reloadRelationship(data) {
-        console.log(Helper.serialize(data))
-        API.get_UserRelationshipById(user.id,userRelationshipFinished);
+        }
+        else
+        {
+            isSelf = false;
+            instagram.userFriendship(user.pk);
+        }
     }
 
 
@@ -302,24 +303,50 @@ Page {
         }
     }
 
-    function recentMediaFinished(data) {
-        if(data === undefined || data.data === undefined) {
+    Connections{
+        target: instagram
+        onUserTimeLineDataReady:{
+            var data = JSON.parse(answer);
+            if(data === undefined || data.items === undefined) {
+                recentMediaLoaded=true;
+                return;
+            }
+            recentMediaData = data
+            for(var i=0; i<data.items.length; i++) {
+                recentMediaModel.append(data.items[i]);
+            }
             recentMediaLoaded=true;
-            return;
         }
-        recentMediaData = data
-        for(var i=0; i<data.data.length; i++) {
-            recentMediaModel.append(data.data[i]);
-        }
-        recentMediaLoaded=true;
-
     }
 
-    function userRelationshipFinished(data) {
-        if(data.meta.code===200) {
-            rel_outgoing_status = data.data.outgoing_status
-            rel_incoming_status = data.data.incoming_status
+    Connections{
+        target: instagram
+        onUsernameDataReady:{
+            var out = JSON.parse(answer);
+            user = out.user
+        }
+    }
+
+    Connections{
+        target: instagram
+        onUserFriendshipDataReady:{
             relationStatusLoaded = true;
+            relationStatus = JSON.parse(answer)
+            if(!isSelf)
+            {
+                followMenuItem.visible = !relationStatus.following
+                unFollowMenuItem.visible = relationStatus.following
+            }
+            else
+            {
+                followMenuItem.visible = false
+                unFollowMenuItem.visible = false
+            }
+
+            if(relationStatus.is_private)
+            {
+                privatelabel.visible = true
+            }
         }
     }
 }

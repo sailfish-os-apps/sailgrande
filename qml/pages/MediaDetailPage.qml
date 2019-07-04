@@ -2,16 +2,16 @@ import QtQuick 2.0
 import Sailfish.Silica 1.0
 import QtMultimedia 5.0
 import "../components"
-import "../Api.js" as API
 import "../CoverMode.js" as CoverMode
-
+import "../MediaStreamMode.js" as  MediaStreamMode
+import "../Helper.js" as Helper
 
 Page {
 
     allowedOrientations:  Orientation.All
 
-
     property var item
+    property var relationStatus
     property bool playVideo : false
     property bool userLikedThis : false
     property bool likeStatusLoaded : false
@@ -37,7 +37,7 @@ Page {
 
             Label {
                 id: likesCommentsCount
-                text: item.likes.count + " " +qsTr("likes") + " - " + item.comments.count + " " + qsTr("comments")  + (userLikedThis? " - " + qsTr("You liked this.") : "")
+                text: item.like_count + " " +qsTr("likes") + " - " + item.comment_count + " " + qsTr("comments")  + (item.has_liked? " - " + qsTr("You liked this.") : "")
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.paddingMedium
                 anchors.right: parent.right
@@ -45,76 +45,31 @@ Page {
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeTiny
                 color: userLikedThis? Theme.highlightColor : Theme.secondaryHighlightColor
-                visible: likeStatusLoaded
-            }
 
-            Video {
-                id: video
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: visible ? video.width : 0
-                visible: playVideo && video.status !== MediaPlayer.Loading
-                source: ""
-
-                MouseArea {
+                MouseArea{
                     anchors.fill: parent
-
                     onClicked: {
-                        video.stop();
+                        pageStack.push(Qt.resolvedUrl("LikesPage.qml"), {mediaId: item.id});
                     }
                 }
-
-                onStopped: {
-                    playVideo = false;
-                }
             }
 
-            Rectangle {
-                id: image
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: image.width
-                visible: !playVideo || video.status === MediaPlayer.Loading
-                color: "transparent"
-
-                Image {
-                   anchors.fill: parent
-                   source: item.images ? item.images.thumbnail.url : ""
-                }
-
-                Image {
-                   anchors.fill: parent
-                   source: item.images ? item.images.standard_resolution.url : ""
-                }
 
 
-
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    visible: playVideo && video.status === MediaPlayer.Loading
-                    running: visible
-                }
-
-
-                Image {
-                   anchors.centerIn: parent
-                   source:  "image://theme/icon-cover-play"
-                   visible: item.videos !== undefined && !playVideo
-                }
-
-                MouseArea {
+                MainItemLoader{
+                    id: mainLoader
                     anchors.fill: parent
-                    onClicked: {startVideo()}
-                    visible: item.videos !== undefined && !playVideo
+                    width: parent.width
 
+                    clip: true
                 }
-            }
+
 
 
             Label {
                 id: description
                 visible: text!==""
-                text: item.caption !== undefined ? item.caption.text : ""
+                text: item.caption ? Helper.formatString(item.caption.text) : ""
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.paddingMedium
                 anchors.right: parent.right
@@ -123,127 +78,201 @@ Page {
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.highlightColor
+                linkColor: Theme.highlightColor
+
+                textFormat: Text.StyledText
+
+                onLinkActivated: {
+                    linkClick(link);
+                }
             }
 
             UserInfoBlock {
                 id:userInfo
             }
 
-            Repeater {
-                model: item.comments.data.length
+            Rectangle{
+                id: doComment
                 width: parent.width
+                height: childrenRect.height
+                color: "transparent"
 
-                Item {
-                    height: labelUser.height+labelComment.height
-                    width: parent.width
+                IconButton{
+                    id: sendCommentButton
+                    icon.source: "image://theme/icon-m-bubble-universal?" + (pressed
+                                                                             ? Theme.highlightColor
+                                                                             : Theme.primaryColor)
+                    anchors.right: parent.right
 
-                    Rectangle {
-                        anchors.fill: parent
-                        color: Theme.highlightColor
-                        opacity: mousearea.pressed ? 0.3 : 0
-                    }
-
-                    Label {
-                        id: labelUser
-                        text: getCommentByIndex(index).from.username + " - " + Qt.formatDateTime(
-                                  new Date(parseInt(getCommentByIndex(index).created_time) * 1000),
-                                  "dd.MM.yy hh:mm")
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.paddingMedium
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.paddingMedium
-
-                        wrapMode: Text.Wrap
-                        truncationMode: TruncationMode.Fade
-                        font.pixelSize: Theme.fontSizeTiny
-                        color: Theme.secondaryHighlightColor
-                    }
-                    Label {
-                        id: labelComment
-                        text: getCommentByIndex(index).text
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.paddingMedium
-                        anchors.right: parent.right
-                        anchors.rightMargin: Theme.paddingMedium
-                        anchors.top: labelUser.bottom
-                        wrapMode: Text.Wrap
-                        font.pixelSize: Theme.fontSizeSmall
-                        color: Theme.highlightColor
-                    }
-
-                    MouseArea {
-                        id: mousearea
-                        anchors.fill: parent
-                        onClicked: {
-                            if(playVideo)
-                                video.stop();
-                            pageStack.push(Qt.resolvedUrl("../pages/UserProfilPage.qml"),{user:getCommentByIndex(index).from});
+                    onClicked: {
+                        commentBody.readOnly = true
+                        if(commentBody.text.length > 0)
+                        {
+                            instagram.postComment(item.id, commentBody.text)
                         }
                     }
                 }
+
+                TextField{
+                    id: commentBody
+                    width: parent.width-sendCommentButton.width
+                    anchors{
+                        verticalCenter: sendCommentButton.verticalCenter
+                        left: parent.left
+                    }
+                }
+            }
+
+            Repeater {
+                id: commentsRepeater
+                width: parent.width
+                delegate: CommentItem{item: modelData}
             }
         }
 
 
         PullDownMenu {
-            visible: likeStatusLoaded
 
             MenuItem {
-                 text: qsTr("Remove my like")
-                 visible: userLikedThis && likeStatusLoaded
-                 onClicked: {
-                     item.user_has_liked= false;
-                     API.unlike(item.id, reload);
-                 }
-             }
+                id: followMenu
+                text: qsTr("Follow")
+                visible: item.user.pk != app.user.pk && item.user.friendship_status.following
+                onClicked: {
+                    instagram.follow(item.user.pk)
+                    followMenu.visible = false
+                    unFollowMenu.visible = true
+                }
+            }
 
             MenuItem {
-                 text: qsTr("Like")
-                 visible: !userLikedThis && likeStatusLoaded
-                 onClicked: {
-                     item.user_has_liked= true;
-                     API.like(item.id, reload);
-                 }
-             }
-
-
-
-           }
-
+                id: unFollowMenu
+                text: qsTr("Un Follow")
+                visible: item.user.pk != app.user.pk && !item.user.friendship_status.following
+                onClicked: {
+                    instagram.unFollow(item.user.pk)
+                    unFollowMenu.visible = false
+                    followMenu.visible = true
+                }
+            }
+            MenuItem{
+                id: likeMenu
+                text: item.has_liked ? qsTr("Unlike") : qsTr("Like")
+                onClicked: {
+                    if(item.has_liked)
+                    {
+                        instagram.like(item.id)
+                    }
+                    else
+                    {
+                        instagram.unLike(item.id)
+                    }
+                }
+            }
+            MenuItem{
+                id: deleteMenu
+                text: qsTr("Remove")
+                visible: item.user.pk == app.user.pk
+                onClicked: {
+                    instagram.deleteMedia(item.id)
+                }
+            }
+        }
     }
 
-    function getCommentByIndex(index) {
-        return item.comments.data[index]
-    }
+    function linkClick(link)
+    {
+        var result = link.split("://");
+        if(result[0] === "user")
+        {
+            console.log("Load user "+result[1])
+            instagram.searchUsername(result[1]);
+        }
 
-    function startVideo() {
-        video.source=item.videos.low_bandwidth.url;
-        video.play();
-        playVideo=true;
+        if(result[0] === "tag")
+        {
+            console.log("Load tag "+result[1])
+            pageStack.push(Qt.resolvedUrl("../pages/MediaStreamPage.qml"),{tag: result[1], mode:  MediaStreamMode.TAG_MODE, streamTitle: 'Tagged with ' + "#"+result[1] });
+        }
     }
 
     Component.onCompleted: {
-        var coverdata = {}
-        coverdata.image = item.images.thumbnail.url;
-        coverdata.username = item.user.username;
-
-        setCover(CoverMode.SHOW_IMAGE,coverdata)
-
-        userLikedThis = item.user_has_liked;
-        reload();
-
+        userLikedThis = item.has_liked;
         refreshCallback = null
+        instagram.getMediaComments(item.id);
+        if(app.user.pk !== item.user.pk)
+        {
+            instagram.userFriendship(item.user.pk);
+        }
+        else
+        {
+            followMenu.visible = false
+            unFollowMenu.visible = false
+        }
+    }
+
+    Connections{
+        target: instagram
+        onLikeDataReady:{
+            var out = JSON.parse(answer)
+            if(out.status === "ok")
+            {
+                item.has_liked= true;
+                likesCommentsCount.text = item.like_count+1 + " " +qsTr("likes") + " - " + item.comment_count + " " + qsTr("comments") + " - " + qsTr("You liked this.")
+            }
+        }
 
     }
 
-    function reload() {
-        API.get_MediaById(item.id,reloadFinished);
+    Connections{
+        target: instagram
+        onUnLikeDataReady:{
+            var out = JSON.parse(answer)
+            if(out.status === "ok")
+            {
+                item.has_liked= false;
+                likesCommentsCount.text = item.like_count-1 + " " +qsTr("likes") + " - " + item.comment_count + " " + qsTr("comments")
+            }
+        }
+        onMediaDeleted:{
+            pageStack.pop();
+        }
     }
 
-    function reloadFinished(data) {
-        likeStatusLoaded = true;
-        userLikedThis = data.data.user_has_liked;
+    Connections{
+        target: instagram
+        onMediaCommentsDataReady:{
+            var out = JSON.parse(answer)
+            commentsRepeater.model = out.comments
+        }
     }
 
+    Connections{
+        target: instagram
+        onCommentPosted:{
+            instagram.getMediaComments(item.id);
+            commentBody.readOnly = false
+            commentBody.text = "";
+        }
+    }
 
+    Connections{
+        target: instagram
+        onSearchUsernameDataReady:{
+            var data = JSON.parse(answer)
+            if(data.status === "ok")
+            {
+                pageStack.push(Qt.resolvedUrl("../pages/UserProfilPage.qml"),{user: data.user});
+            }
+        }
+    }
+
+    Connections{
+        target: instagram
+        onUserFriendshipDataReady:{
+            relationStatus = JSON.parse(answer)
+
+            followMenu.visible = !relationStatus.following
+            unFollowMenu.visible = relationStatus.following
+        }
+    }
 }

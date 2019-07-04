@@ -41,11 +41,11 @@ CoverBackground {
 
         Image {
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "/usr/share/icons/hicolor/86x86/apps/harbour-sailgrande.png"
+            source: "/usr/share/icons/hicolor/86x86/apps/harbour-prostogram.png"
         }
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "SailGrande"
+            text: "Prostogram"
         }
     }
 
@@ -56,7 +56,7 @@ CoverBackground {
         spacing: Theme.paddingSmall
 
         Image {
-            anchors.top: Theme.paddingMedium
+            anchors.topMargin: Theme.paddingMedium
             width: parent.width
             height: width
             source: currentCoverData !== undefined && currentCoverData.image !== undefined ? currentCoverData.image : ""
@@ -101,9 +101,7 @@ CoverBackground {
         CoverAction {
             iconSource: "image://theme/icon-cover-refresh"
             onTriggered : refreshFeed()
-
         }
-
     }
 
 
@@ -124,13 +122,6 @@ CoverBackground {
         }
     }
     function refreshFeed() {
-        dataLoading = true
-        getFeed(CoverCtl.refrMode, CoverCtl.refrTag, false, function (data) {
-            loadFeedMediaData(data)
-            dataLoading = false
-            refreshCallbackPending = true
-        })
+        app.refresh();
     }
-
-
 }
