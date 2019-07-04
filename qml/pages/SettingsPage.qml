@@ -1,156 +1,96 @@
-import QtQuick 2.0
+import QtQuick 2.2
 import Sailfish.Silica 1.0
-import QtQuick.LocalStorage 2.0
 
-import "../components"
-import "../Storage.js" as Storage
+Dialog {
 
-Page {
-
-    id: aboutPage
-    allowedOrientations:  Orientation.All
+    onAccepted: {
+        settings.tiny = parseInt(size_base.text);
+        settings.styleColorFont = color_font.text;
+        settings.styleColorBackground = color_bg.text;
+        settings.styleColorLink = color_link.text;
+        settings.styleColorButton = color_button.text;
+    }
 
 
 
     SilicaFlickable {
         anchors.fill: parent
+        contentHeight: settingsColumn.height
+
         VerticalScrollDecorator {}
 
-        contentHeight: header.height + contentColumn.height + Theme.paddingMedium
-        PageHeader {
-            id: header
-            title: qsTr("Settings")
-        }
-
         Column {
+            id: settingsColumn
+            width: parent.width
+            spacing: Theme.paddingLarge
 
-            id: contentColumn
-            spacing: 4
-
-            anchors {
-              top: header.bottom;
-              topMargin: Theme.paddingMedium;
-              left: parent.left;
-              right: parent.right;
+            DialogHeader {
+                title: qsTr("Settings")
+                acceptText: qsTr("Save")
+                cancelText: qsTr("Cancel")
             }
 
-            SectionHeader {
-              text: qsTr("Startpage")
-            }
+            SectionHeader{ text: qsTr("Predefined themes") }
 
-            TextSwitch {
-                text: qsTr("Show popular feed")
-                onCheckedChanged: {
-                    startPageShowPopularFeed = checked
-                    Storage.set("startPageShowPopularFeed", checked ? 1 : 0);
+            ComboBox {
+                id: predefinedTheme
+                label: qsTr("Theme. NOT IMPLEMENTED")
+                currentIndex: 0
+                menu: ContextMenu {
+                    MenuItem { text: "NOT IMPLEMENTED" }
                 }
-                Component.onCompleted: checked = startPageShowPopularFeed
             }
 
-            Label {
-                color: Theme.secondaryHighlightColor
-                text: qsTr("Customize the column and row count of the feed previews on the startpage:")
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fontSizeSmall
-            }
+            /*TextSwitch {
+                id: notifyRequests
+                text: qsTr("SomeSetting")
+                checked: settings.notifyRequests
+                description: qsTr("%1 will send you notifications when getting a friend request.").arg("Sailbook")
+            }*/
 
+            SectionHeader{ text: qsTr("Colors (text/#rgb)") }
 
-            Slider {
-                label: qsTr("Columns")
+            TextField {
+                id: color_font
                 width: parent.width
-                minimumValue: 2
-                maximumValue: 5
-                value: 3
-                stepSize: 1
-                valueText: value
-                onValueChanged: {
-                    streamPreviewColumnCount = value
-                    Storage.set("streamPreviewColumnCount", value);
-                }
-                Component.onCompleted: value = streamPreviewColumnCount
+                placeholderText: qsTr("Font Color")
+                label: qsTr("Font Color")
+                text: settings.styleColorFont
             }
 
-            Slider {
-                label: qsTr("Rows")
+            TextField {
+                id: color_bg
                 width: parent.width
-                minimumValue: 1
-                maximumValue: 4
-                value: 2
-                stepSize: 1
-                valueText: value
-                onValueChanged: {
-                    streamPreviewRowCount = value
-                    Storage.set("streamPreviewRowCount", value);
-                }
-                Component.onCompleted: value = streamPreviewRowCount
+                placeholderText: qsTr("Backgorund Color")
+                label: qsTr("Backgorund Color")
+                text: settings.styleColorBackground
             }
 
-            Label {
-                color: Theme.secondaryHighlightColor
-                text: qsTr("Shows %1 items per feed preview.").arg(streamPreviewRowCount * streamPreviewColumnCount)
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fontSizeSmall
+            TextField {
+                id: color_link
+                width: parent.width
+                placeholderText: qsTr("Links Color")
+                label: qsTr("Links Color")
+                text: settings.styleColorLink
             }
 
-            SectionHeader {
-              text: qsTr("Feeds")
+            TextField {
+                id: color_button
+                width: parent.width
+                placeholderText: qsTr("Color")
+                label: qsTr("Buttons/messages Color")
+                text: settings.styleColorButton
             }
 
-            TextSwitch {
-                text: qsTr("Show user and date")
-                onCheckedChanged: {
-                    feedsShowUserDate = checked
-                    Storage.set("feedsShowUserDate", checked ? 1 : 0);
-                }
-                Component.onCompleted: checked = feedsShowUserDate
+            SectionHeader{ text: qsTr("Font Size") }
+
+            TextField {
+                id: size_base
+                width: parent.width
+                placeholderText: qsTr("Size")
+                label: qsTr("Base Font Size. Will Increase All Font!")
+                text: settings.tiny
             }
-
-            TextSwitch {
-                enabled: feedsShowUserDate
-                text: qsTr("Show user and date inline")
-                onCheckedChanged: {
-                    feedsShowUserDateInline = checked
-                    Storage.set("feedsShowUserDateInline", checked ? 1 : 0);
-                }
-                Component.onCompleted: checked = feedsShowUserDateInline
-            }
-
-            TextSwitch {
-                text: qsTr("Show captions")
-                onCheckedChanged: {
-                    feedsShowCaptions = checked
-                    Storage.set("feedsShowCaptions", checked ? 1 : 0);
-                }
-                Component.onCompleted: checked = feedsShowCaptions
-            }
-
-        }
-
-        PullDownMenu {
-
-            MenuItem {
-                text: qsTr("Logout")
-
-                onClicked: {
-                    Storage.set("authtoken","");
-                    pageStack.replaceAbove(null,Qt.resolvedUrl("AuthPage.qml"), {logout:true})
-                }
-            }
-
         }
     }
-    Component.onCompleted: {
-        refreshCallback = null
-    }
-
 }
-
-

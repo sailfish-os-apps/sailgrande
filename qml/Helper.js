@@ -30,3 +30,30 @@ function _processObject(object, maxDepth, level) {
 
     return _processObject(object, maxDepth)
 }
+
+
+function formatString(string)
+{
+    var user_reg = "/@(\w*)/g";
+    var tag_reg = "/#(\S*)/g"
+
+    if (string !== "" && string.length > 1 ){
+    string = string.replace(/@(\w*)/g,'<a href="user://$1">@$1</a>');
+    string = string.replace(/#(\S*)/g,'<a href="tag://$1">#$1</a>');
+    }
+    else string = '<a href="user://unname">@unname</a>'
+    return string;
+}
+
+function skrocLiczbe(input){
+    var arg = parseInt(input);
+    if(arg < 1000) return arg;
+    if(arg < 1000000) {
+        return (arg/1000).toFixed(1) + "k";
+    }
+    if(arg <1000000000) {
+        return (arg/1000000).toFixed(1) + "m";
+    } else {
+        return (arg/1000000000).toFixed(1) + "b";
+    }
+}

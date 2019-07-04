@@ -1,6 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import "../Api.js" as API
+
 import "../Helper.js" as Helper
 import "../CoverMode.js" as CoverMode
 import "../Cover.js" as CoverCtl
@@ -41,11 +41,11 @@ CoverBackground {
 
         Image {
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "/usr/share/icons/hicolor/86x86/apps/harbour-sailgrande.png"
+            source: "/usr/share/icons/hicolor/86x86/apps/harbour-prostogram.png"
         }
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "SailGrande"
+            text: "Prostogram"
         }
     }
 
@@ -56,9 +56,10 @@ CoverBackground {
         spacing: Theme.paddingSmall
 
         Image {
-            anchors.top: Theme.paddingMedium
+            anchors.topMargin: Theme.paddingMedium
             width: parent.width
             height: width
+            fillMode: Image.PreserveAspectCrop
             source: currentCoverData !== undefined && currentCoverData.image !== undefined ? currentCoverData.image : ""
         }
 
@@ -69,7 +70,7 @@ CoverBackground {
             anchors.right: parent.right
             anchors.rightMargin: Theme.paddingSmall
             truncationMode: TruncationMode.Fade
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: settings.small
             color: Theme.secondaryHighlightColor
         }
     }
@@ -101,9 +102,7 @@ CoverBackground {
         CoverAction {
             iconSource: "image://theme/icon-cover-refresh"
             onTriggered : refreshFeed()
-
         }
-
     }
 
 
@@ -124,13 +123,6 @@ CoverBackground {
         }
     }
     function refreshFeed() {
-        dataLoading = true
-        getFeed(CoverCtl.refrMode, CoverCtl.refrTag, false, function (data) {
-            loadFeedMediaData(data)
-            dataLoading = false
-            refreshCallbackPending = true
-        })
+        app.refresh();
     }
-
-
 }
