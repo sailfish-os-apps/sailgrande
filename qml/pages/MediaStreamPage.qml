@@ -3,7 +3,6 @@ import QtQuick 2.0
 import Sailfish.Silica 1.0
 import QtQuick.LocalStorage 2.0
 
-import "../Api.js" as API
 import "../Helper.js" as Helper
 import "../components"
 import "../MediaStreamMode.js" as MediaStreamMode
@@ -15,8 +14,6 @@ Page {
     id: page
 
     allowedOrientations:  Orientation.All
-
-    property var nextMediaUrl: null
     property bool dataLoaded: false
 
     property int mode
@@ -27,6 +24,11 @@ Page {
     property bool refreshStreamData : true
     property string tag: ""
 
+    property var mediaModel: []
+
+    property bool more_available
+    property string next_max_id
+
     SilicaListView {
         id: listView
         model: mediaModel
@@ -34,9 +36,10 @@ Page {
         header: PageHeader {
             title: streamTitle
         }
+
         delegate: FeedItem {
             visible: dataLoaded
-            item: model
+            item: modelData
         }
 
         VerticalScrollDecorator {
@@ -62,29 +65,24 @@ Page {
 
             MenuItem {
                 text: qsTr("Refresh")
-                onClicked: getMediaData(false)
+                onClicked: {
+                    dataLoaded = false
+                    mediaModel = []
+                    mediaModelChanged();
+                    getMedia();
+                }
             }
         }
 
         PushUpMenu {
-            visible: nextMediaUrl !== null
+            visible: more_available
             MenuItem {
                 text: qsTr("Load more")
-                onClicked: timerLoadmore.restart()
+                onClicked: {
+                    getMedia(next_max_id)
+                }
             }
         }
-    }
-
-    Timer {
-        id: timerLoadmore
-        interval: 500
-        running: false
-        repeat: false
-        onTriggered: getNextMediaData()
-    }
-
-    ListModel {
-        id: mediaModel
     }
 
     BusyIndicator {
@@ -98,19 +96,31 @@ Page {
     }
 
     ErrorMessageLabel {
-        visible: dataLoaded && !errorOccurred && mediaModel.count === 0
+        visible: dataLoaded && !errorOccurred && mediaModel.length === 0
         text: qsTr("There is no picture in this feed.")
     }
 
     Component.onCompleted: {
-        if (streamData !== null) {
-            mediaDataFinished(streamData)
-            setCoverRefresh(CoverMode.SHOW_FEED, streamData,mode,tag)
-        } else {
-            getMediaData(true)
-            getFeed(mode, tag, true, function (data) {
-                setCoverRefresh(CoverMode.SHOW_FEED, data, mode,tag)
-            })
+        getMedia();
+    }
+
+    function getMedia(next_id)
+    {
+        if(page.mode === MediaStreamMode.MY_STREAM_MODE)
+        {
+            instagram.getTimelineFeed(next_id);
+        }
+        else if(page.mode === MediaStreamMode.POPULAR_MODE)
+        {
+            instagram.getPopularFeed(next_id)
+        }
+        else if(page.mode === MediaStreamMode.TAG_MODE)
+        {
+            instagram.getTagFeed(tag)
+        }
+        else if(page.mode === MediaStreamMode.USER_MODE)
+        {
+            instagram.getUserFeed(tag,next_id);
         }
     }
 
@@ -121,48 +131,39 @@ Page {
 
     function getMediaData(cached) {
         dataLoaded = false
-        mediaModel.clear()
+        mediaModel = []
+        mediaModelChanged();
         refreshStreamData = true
         getFeed(mode, tag, cached, mediaDataFinished)
     }
 
-    function getNextMediaData() {
-        refreshStreamData = false
-        API.get_Url(nextMediaUrl, mediaDataFinished)
-    }
-
     function mediaDataFinished(data) {
-        if (data === undefined || data.data === undefined) {
-            dataLoaded = true
-            errorOccurred = true
-            return
+        streamData = data;
+        if(data ===null || data === undefined || data.items.length === 0)
+        {
+            dataLoaded=true;
+            errorOccurred=true
+            return;
         }
-        if(refreshStreamData) {
-            streamData=data
-            setCoverRefresh(CoverMode.SHOW_FEED, data, mode,tag)
-        }
-
         errorOccurred = false
 
-        for (var i = 0; i < data.data.length; i++) {
-            mediaModel.append(data.data[i])
+        for(var i=0; i<data.items.length; i++) {
+            mediaModel.push(data.items[i]);
+            mediaModelChanged();
         }
 
-        if(mediaModel.count>0) {
-
-            var url = mediaModel.get(0).images.thumbnail.url
-            var username = mediaModel.get(0).user.username
-            setCoverImage(url, username)
-        }
-
-        if (data.pagination !== undefined && data.pagination.next_url) {
-            nextMediaUrl = data.pagination.next_url
-        } else {
-            nextMediaUrl = null
-        }
         dataLoaded = true
-    }
 
+        page.more_available = data.more_available
+        if(page.more_available)
+        {
+            page.next_max_id = data.next_max_id
+        }
+        else
+        {
+            page.next_max_id = "";
+        }
+    }
 
     onStatusChanged: {
         if (status === PageStatus.Active) {
@@ -171,4 +172,47 @@ Page {
         }
     }
 
+    Connections{
+        target: instagram
+        onTimelineFeedDataReady: {
+            var data = JSON.parse(answer);
+            if(page.mode === MediaStreamMode.MY_STREAM_MODE)
+            {
+                mediaDataFinished(data);
+            }
+        }
+    }
+
+    Connections{
+        target: instagram
+        onPopularFeedDataReady: {
+            var data = JSON.parse(answer);
+            if(page.mode === MediaStreamMode.POPULAR_MODE)
+            {
+                mediaDataFinished(data);
+            }
+        }
+    }
+
+    Connections{
+        target: instagram
+        onTagFeedDataReady: {
+            var data = JSON.parse(answer);
+            if(page.mode === MediaStreamMode.TAG_MODE)
+            {
+                mediaDataFinished(data);
+            }
+        }
+    }
+
+    Connections{
+        target: instagram
+        onUserFeedDataReady: {
+            var data = JSON.parse(answer);
+            if(page.mode === MediaStreamMode.USER_MODE)
+            {
+                mediaDataFinished(data);
+            }
+        }
+    }
 }

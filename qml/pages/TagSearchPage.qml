@@ -1,8 +1,10 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import QtQuick.LocalStorage 2.0
-import "../Api.js" as API
+
 import "../MediaStreamMode.js" as MediaStreamMode
+
+import "../components"
 
 Page {
 
@@ -16,13 +18,12 @@ Page {
     property int pageNr : 1
     id: tagsPage
 
-
     SilicaFlickable {
         anchors.fill: parent
 
         PageHeader {
             id: header
-            title: qsTr("Search for tag")
+            title: qsTr("Search tag")
         }
 
         SearchField {
@@ -31,83 +32,86 @@ Page {
             width: parent.width
 
             onTextChanged: {
+                if(searchField.text == "")
+                {
+                    list.model = [];
+                }
                 timerSearchTags.restart();
             }
         }
 
 
-
-
-    SilicaListView {
-        id: list
-        anchors.top: searchField.bottom
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        anchors.left: parent.left
-        visible: dataLoaded
-        model: tagsModel
-        clip: true
-
-        delegate: BackgroundItem {
-
-            id: delegate
-
-            Label {
-                text: name + " (" + media_count + "x)"
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-                wrapMode: Text.Wrap
-                textFormat: Text.RichText
-                font.pixelSize: Theme.fontSizeMedium
-
+        PullDownMenu {
+            MenuItem {
+                id: searchUser
+                text: qsTr("Search user")
+                visible: true
+                onClicked: {
+                    pageStack.push(Qt.resolvedUrl("UserSearchPage.qml"),{user: user});
+                }
             }
-
-            onClicked: {
-                pageStack.replace(Qt.resolvedUrl("MediaStreamPage.qml"),{mode : MediaStreamMode.TAG_MODE, tag:name , streamTitle: 'Tagged with ' + name })
+            MenuItem {
+                id: explore
+                text: qsTr("Explore")
+                visible: true
+                onClicked: {
+                    pageStack.push(Qt.resolvedUrl("ExplorePage.qml"),{user: user});
+                }
             }
-       }
-
-        ListModel {
-            id: tagsModel
+            MenuItem {
+                id: stories
+                text: qsTr("Stories")
+                visible: false
+                onClicked: {
+                    pageStack.push(Qt.resolvedUrl("StoryPage.qml"),{user: user});
+                }
+            }
         }
 
+        SilicaListView {
+            id: list
+            anchors.top: searchField.bottom
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            anchors.left: parent.left
+            visible: dataLoaded
 
-        VerticalScrollDecorator { }
+            clip: true
 
+            delegate: FeedItem {item: modelData}
+
+            VerticalScrollDecorator { }
+
+        }
     }
-    }
+
     BusyIndicator {
         anchors.centerIn: parent
         running: dataLoaded == false && searchField.text.trim() !== ""
         size: BusyIndicatorSize.Large
     }
 
-    function searchTagsData(searchTerm) {
-        if(searchTerm.trim() === "")
-            return;
-
-        API.get_Tags(searchTerm, tagsDataSearched);
+    function searchTagsData() {
+        instagram.getTagFeed(searchField.text);
     }
 
-    function tagsDataSearched(data) {
-        tagsModel.clear();
-        loadingMore = false;
-        for(var i=0; i<data.data.length; i++) {
-            tagsModel.append(data.data[i]);
+    Connections{
+        target: instagram
+        onTagFeedDataReady:{
+            var data  = JSON.parse(answer)
+            list.model = data.ranked_items
+            dataLoaded = true;
         }
-        dataLoaded = true;
-
     }
+
 
     Timer {
-         id: timerSearchTags
-         interval: 600
-         running: false
-         repeat: false
-         onTriggered: searchTagsData(searchField.text)
-     }
+        id: timerSearchTags
+        interval: 600
+        running: false
+        repeat: false
+        onTriggered: searchTagsData()
+    }
 
     Component.onCompleted: {
         refreshCallback = null

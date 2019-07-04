@@ -1,6 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import "../Api.js" as API
+
 import "../Helper.js" as Helper
 import "../CoverMode.js" as CoverMode
 import "../Cover.js" as CoverCtl
@@ -12,7 +12,7 @@ CoverBackground {
 
     property var currentCoverData
 
-    property int currentMode: CoverMode.SHOW_APPICON
+    property int currentMode: 1
 
     property int feedMediaSize : width/2
 
@@ -21,19 +21,19 @@ CoverBackground {
     onActiveChanged: refreshCover()
 
     function refreshCover() {
-        if(CoverCtl.nextChanged===false)
+        if(CoverCtl.nextChanged == false)
             return
 
         currentCoverData = CoverCtl.nextCoverData
         currentMode = CoverCtl.nextMode
         CoverCtl.nextChanged = false
-        if(currentMode===CoverMode.SHOW_FEED) loadFeedMediaData(currentCoverData)
+        if(currentMode == CoverMode.SHOW_FEED) loadFeedMediaData(currentCoverData)
     }
 
 
     //### Mode: AppIcon
     Column {
-        visible: currentMode === CoverMode.SHOW_APPICON
+        visible: currentMode = CoverMode.SHOW_APPICON
 
         anchors.centerIn: parent
         width: parent.width
@@ -41,24 +41,25 @@ CoverBackground {
 
         Image {
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "/usr/share/icons/hicolor/86x86/apps/harbour-sailgrande.png"
+            source: "/usr/share/icons/hicolor/86x86/apps/harbour-prostogram.png"
         }
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "SailGrande"
+            text: "Prostogram"
         }
     }
 
     //### Mode: Image
     Column {
-        visible: currentMode === CoverMode.SHOW_IMAGE
+        visible: currentMode == CoverMode.SHOW_IMAGE
         width: parent.width
         spacing: Theme.paddingSmall
 
         Image {
-            anchors.top: Theme.paddingMedium
+            anchors.topMargin: Theme.paddingMedium
             width: parent.width
             height: width
+            fillMode: Image.PreserveAspectCrop
             source: currentCoverData !== undefined && currentCoverData.image !== undefined ? currentCoverData.image : ""
         }
 
@@ -77,7 +78,7 @@ CoverBackground {
     //### Mode: Feed
 
     Grid {
-        visible: currentMode === CoverMode.SHOW_FEED
+        visible: currentMode == CoverMode.SHOW_FEED
         columns: 2
         anchors.left: parent.left
         anchors.right: parent.right
@@ -101,9 +102,7 @@ CoverBackground {
         CoverAction {
             iconSource: "image://theme/icon-cover-refresh"
             onTriggered : refreshFeed()
-
         }
-
     }
 
 
@@ -124,13 +123,6 @@ CoverBackground {
         }
     }
     function refreshFeed() {
-        dataLoading = true
-        getFeed(CoverCtl.refrMode, CoverCtl.refrTag, false, function (data) {
-            loadFeedMediaData(data)
-            dataLoading = false
-            refreshCallbackPending = true
-        })
+        app.refresh();
     }
-
-
 }

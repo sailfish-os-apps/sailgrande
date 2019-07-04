@@ -1,156 +1,223 @@
-import QtQuick 2.0
+import QtQuick 2.6
+
 import Sailfish.Silica 1.0
+import QtMultimedia 5.0
 
-BackgroundItem {
+import "../Helper.js" as Helper
 
+Column {
+    id: feedItem
     property var item
+    property bool playVideo : false
+    property int type: 0
 
-    id: delegate
-    height: feedItemCol.height
     width: parent.width
-    property bool landscapeMode : (orientation === Orientation.Landscape || orientation === Orientation.LandscapeInverted)
+    height: childrenRect.height+20
 
-    Item {
+    UserInfoBlock{
+        id: header
+        height: actions.height*1.1
+    }
 
-        anchors.fill: parent
+    spacing: 20
 
-        Column {
-            id: feedItemCol
-            width: (landscapeMode) ?  parent.width* 0.4 : parent.width
-            Image {
-                id: image
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: image.width
-                source: item.images ? item.images.low_resolution.url : ""
+    MainItemLoader{
+        id: mainLoader
+        width: parent.width
+        clip: true
 
-                Image {
-                    anchors.centerIn: parent
-                    source: "image://theme/icon-cover-play"
-                    visible: item.videos !== undefined
-                }
+        Image {
+            id: likeImage
+            width: (parent.width > parent.height) ? parent.height*0.4 : parent.width*0.4
+            height: width
 
-                Item {
-                    visible: feedsShowUserDate && feedsShowUserDateInline &&  !landscapeMode
+            sourceSize.height: height
+            sourceSize.width: height
 
-                    height: labelInline.height+Theme.paddingSmall*2
-                    anchors.bottom: image.bottom
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+            opacity: 0
 
-                    Rectangle {
-                        color: "black"
-                        opacity: 0.5
-                        anchors.fill: parent
-                    }
+            source: "../images/heart.svg"
 
-                    Label {
-                        id: labelInline
-                        text: item.user.username + " - " + Qt.formatDateTime(
-                                  new Date(parseInt(item.created_time) * 1000),
-                                  "dd.MM.yy hh:mm")
-                        anchors.centerIn: parent
-                        wrapMode: Text.Wrap
+            anchors.centerIn: parent
 
-                        truncationMode: TruncationMode.Fade
-                        font.pixelSize: Theme.fontSizeSmall
-                        color: Theme.highlightColor
-                    }
-                }
-
-            }
-
-            Label {
-
-                id: userDateLine
-                text: item.user.username + " - " + Qt.formatDateTime(
-                          new Date(parseInt(item.created_time) * 1000),
-                          "dd.MM.yy hh:mm")
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-                wrapMode: Text.Wrap
-
-                truncationMode: TruncationMode.Fade
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.secondaryHighlightColor
-                visible: feedsShowUserDate && !feedsShowUserDateInline && !landscapeMode
-
-            }
-
-            Label {
-
-                id: description
-                visible: feedsShowCaptions && text !== "" && !landscapeMode
-                text: item.caption !== undefined ? item.caption.text : ""
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.highlightColor
-            }
-            Item {
-                id: paddingItem
-                width: parent.width
-                height: Theme.paddingLarge
-                visible: userDateLine.visible || description.visible
+            SequentialAnimation {
+                id: doLikeAnimation
+                NumberAnimation { target: likeImage; property: "opacity"; to: 1; from: 0; duration: 300 }
+                NumberAnimation { target: likeImage; property: "opacity"; to: 0; from: 1; duration: 700 }
             }
         }
 
+        MouseArea{
+            anchors.centerIn: parent
+            width: parent.width*0.5
+            height: parent.width*0.5
 
-        Item {
-            visible: landscapeMode
-            anchors.left: feedItemCol.right
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-
-            Label {
-                id: userInfoLandscape
-                visible: landscapeMode
-                text: item.user.username + " - " + Qt.formatDateTime(
-                          new Date(parseInt(item.created_time) * 1000),
-                          "dd.MM.yy hh:mm")
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
-                wrapMode: Text.Wrap
-
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.secondaryHighlightColor
+            Timer{
+                id:timer
+                interval: 200
+                onTriggered: {
+                    goToMedia();
+                }
             }
 
-            Label {
-                clip: true
-                anchors.top: userInfoLandscape.bottom
-                anchors.bottom: parent.bottom
-                id: descriptionSide
-                visible: text !== ""
-                text: (item.caption !== undefined && landscapeMode) ? item.caption.text : ""
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.paddingMedium
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.paddingMedium
+            onClicked: {
+                if(timer.running)
+                {
+                    doLikeAnimation.start()
+                    if(item.has_liked)
+                    {
+                        instagram.unLike(item.id);
+                    }
+                    else
+                    {
+                        instagram.like(item.id);
+                    }
+                    timer.stop()
+                }
+                else
+                {
+                    timer.restart()
+                }
+            }
+        }
 
-                truncationMode: TruncationMode.Elide
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.highlightColor
+    }
+    /**/
+
+    Rectangle{
+        id: actions
+        anchors{
+            left: parent.left
+            right: parent.right
+        }
+
+        width: parent.width
+        height: likeIcon.height*1.1
+
+        color: "transparent"
+
+        ClickIcon {
+            id: likeIcon
+
+            height: commentIcon.height*0.6
+            width: commentIcon.width*0.6
+
+            anchors{
+                left: parent.left
+                leftMargin: likeIcon.width/3
+                verticalCenter: commentIcon.verticalCenter
+            }
+
+            source: item.has_liked ? "../images/heart.svg" : "../images/heart-o.svg"
+            onClicked: {
+                if(item.has_liked)
+                {
+                    instagram.unLike(item.id);
+
+                    item.has_liked = false;
+                    likeIcon.source = "../images/heart-o.svg"
+                    likeCount.text = item.like_count-1 + " " +qsTr("likes")
+
+                }
+                else
+                {
+                    instagram.like(item.id);
+
+                    item.has_liked = true;
+                    likeIcon.source = "../images/heart.svg"
+                    likeCount.text = item.like_count+1 + " " +qsTr("likes")
+                }
+            }
+
+        }
+
+        IconButton {
+            id: commentIcon
+
+            anchors{
+                left: likeIcon.right
+                leftMargin: commentIcon.width/3
+            }
+
+            icon.source: "image://theme/icon-m-bubble-universal?" + (pressed
+                                                                     ? Theme.highlightColor
+                                                                     : Theme.primaryColor)
+            onClicked: {
+                goToMedia();
             }
         }
     }
 
+    Label{
+        id: likeCount
 
+        width: parent.width-40
+        anchors{
+            left: parent.left
+            leftMargin: 20
+        }
 
+        text:item.like_count+" "+qsTr("likes");
+        font.bold: true
+        color: Theme.secondaryHighlightColor
+    }
 
-    onClicked: {
-        pageStack.push(Qt.resolvedUrl("../pages/MediaDetailPage.qml"), {
-                           item: item
-                       })
+    Label {
+        id: description
+        visible: text!==""
+
+        width: parent.width-40
+        anchors{
+            left: parent.left
+            leftMargin: 20
+        }
+        text: item.caption ? Helper.formatString(item.caption.text) : ""
+
+        clip: true;
+
+        maximumLineCount: 3
+
+        wrapMode: Text.Wrap
+        font.pixelSize: Theme.fontSizeSmall
+        color: Theme.highlightColor
+        linkColor: Theme.highlightColor
+
+        textFormat: Text.StyledText
+
+        onLinkActivated: {
+            linkClick(link);
+        }
+    }
+
+    Column{
+        id: commentsRectangle
+
+        width: parent.width-40
+        spacing: Theme.paddingMedium
+
+        Repeater{
+            id: commentsPreview
+            model: item.preview_comments
+            delegate: CommentItem{item: model}
+        }
+    }
+
+    function linkClick(link)
+    {
+        var result = link.split("://");
+        if(result[0] === "user")
+        {
+            instagram.searchUsername(result[1]);
+        }
+
+        if(result[0] === "tag")
+        {
+            pageStack.push(Qt.resolvedUrl("../pages/MediaStreamPage.qml"),{tag: result[1], mode:  MediaStreamMode.TAG_MODE, streamTitle: 'Tagged with ' + "#"+result[1] });
+        }
+    }
+
+    function goToMedia()
+    {
+        pageStack.push(Qt.resolvedUrl("../pages/MediaDetailPage.qml"),{item:item});
     }
 }
